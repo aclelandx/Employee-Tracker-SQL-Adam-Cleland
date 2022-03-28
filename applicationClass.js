@@ -69,7 +69,7 @@ class EmployeeCMS {
     }
 
     async viewAllDepartments() {
-        await db.promise().query('SELECT department.id, department.department_name FROM department')
+        await db.promise().query('SELECT department.id, department.department_name FROM department ORDER BY department.id')
             .then(([departments]) => {
                 console.table(departments);
             });
@@ -90,8 +90,10 @@ class EmployeeCMS {
         CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee Name', 
         job_title.title AS "Job Position", 
         job_title.salary AS "Salary",
-        department.department_name AS 'Department'
+        department.department_name AS 'Department',
+        CONCAT(Manager.first_name, ' ', Manager.last_name) AS Manager
         FROM employee 
+        LEFT JOIN employee Manager on Manager.id = employee.manager_id
         JOIN job_title ON employee.job_title_id = job_title.id
         JOIN department ON job_title.department_id = department.id
         ORDER BY employee.id`)
@@ -101,13 +103,43 @@ class EmployeeCMS {
         this.backToHome();
     }
 
-    addDepartment() {
-        console.log(`You have chosen to add a department`);
+    async addDepartment() {
+        const newDepartment = await inquirer.prompt([
+            {
+                message: `What is the Name of the new Department?`,
+                type: `input`,
+                name: `name`
+            }
+        ])
+        await db.promise().query(`INSERT INTO department (department_name) VALUES ('${newDepartment.name}');`);
+        console.log(`New Department Has Been Added`);
+        this.viewAllDepartments();
     }
 
-    addJobPosition() {
-        console.log(`You have chosen to add a new job position`);
+    async addJobPosition() {
+        const newJobPosition = await inquirer.prompt([
+            {
+                message: `What is the name of the new job position?`,
+                type: `input`,
+                name: `title`
+            },
+            {
+                message: `What is the Salary for this position?`,
+                type: `input`,
+                name: `salary`
+            },
+        ])
+        await db.promise().query(`SELECT * FROM department ORDER BY department.id`).then(([data]) => console.table(data))
+        const departmentOwner = await inquirer.prompt({
+            message: `Which Department does this position belong to? (please an id from the list above)`,
+            type: `input`,
+            name: `name`
+        })
 
+        await db.promise().query(`INSERT INTO job_title (title, salary, department_id) 
+        VALUES ('${newJobPosition.title}', ${newJobPosition.salary}, ${departmentOwner.name});`);
+        console.log(`The job position of ${newJobPosition.title} has been added to the database`);
+        this.viewAllJobs();
     }
 
     async addEmployee() {
@@ -196,23 +228,44 @@ class EmployeeCMS {
             case `Change Job Position`:
                 await db.promise().query(`SELECT job_title.id, job_title.title FROM job_title`)
                     .then(([data]) => { console.table(data) })
-                inquirer.prompt([{
+                const jobUpdate = await inquirer.prompt([{
                     message: `Please Select an existing job title to assign this individual (Choose By ID)`,
+                    type: `input`,
+                    name: `newJob`
                 }]);
+                await db.promise().query(`UPDATE employee SET job_title_id = ${jobUpdate.newJob} 
+                WHERE id = ${targetEmployee}`)
+                console.log(`Employees job title has been updated`)
+                this.backToHome();
                 break;
             case `Change First Name`:
-                console.log(`you have chosen to change the first name of ${targetEmployee}`);
+                const fNameUpdate = await inquirer.prompt({ message: `What is the new first name for this employee?`, type: `input`, name: `fName` });
+                await db.promise().query(`UPDATE employee SET first_name = '${fNameUpdate.fName}' WHERE employee.id = ${targetEmployee}`)
+                console.log(`First name has been updated`);
+                this.backToHome();
                 break;
             case `Change Last Name`:
-                console.log(`you have chosen to change the last name of ${targetEmployee}`);
+                const lNameUpdate = await inquirer.prompt({ message: `What is the new Last name for this employee?`, type: `input`, name: `lname` });
+                await db.promise().query(`UPDATE employee SET last_name = '${lNameUpdate.lname}' WHERE employee.id = ${targetEmployee}`)
+                console.log(`last name has been updated`);
+                this.backToHome();
                 break;
             case `Change Their Manager`:
-                console.log(`you have chosen to change the manager of ${targetEmployee}`);
+                await db.promise().query(`SELECT employee.id, CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee Name' FROM employee ORDER BY employee.id`).then(([data]) => {
+                    console.table(data)
+                })
+                const updatedManager = await inquirer.prompt({
+                    message: `What is the new manager id for this individual? (please select a number from the list above)`,
+                    type: `input`,
+                    name: `newManager`
+                })
+                await db.promise().query(`UPDATE employee SET manager_id = ${updatedManager.newManager} WHERE employee.id = ${targetEmployee}`)
+                console.log(`The manager for the selected employee has been updated`);
+                this.backToHome();
                 break;
             default: console.log(`something went wrong with your selection`);
                 break;
         }
-        console.log(`you have chosen to change the employee with the id number of: ${targetEmployee}`)
     }
 
     async removeEmployee(targetEmployee) {
@@ -232,29 +285,4 @@ class EmployeeCMS {
     }
 }
 
-const test = new EmployeeCMS();
-
-test.welcomeMessage();
-
-
-// module.exports = EmployeeCMS;
-
-/*
-WHEN  i chose to view all roles, 
-    THEN i am presented with the job  title, role id, the department that the role belongs to, and the salary for that role
-WHEN i choose to view all employees
-    THEN i am presented with a formatted table showing employee data, including employee IDs, first names, last names, job titles, departments, salaries, and managers that the employees report to.
-WHEN i choose to add a department
-    THEN i am prompted to enter the name of the department and then that is added to the database
-WHEN i choose to add a role
-    THEN i am prompted to enter the the name, salary, and the department for the role and that role is added to the database
-WHEN i choose to add an employee
-    THEN i am prompted to enter the employee's first name, last name, role, and manager, and that employee is added to the database
-WHEN i choose to update an employee's Role
-    THEN i am prompted to select an employee to update and their new role and this information is updated into the database.
-*/
-
-/* 
-THINGS THAT ARE STILL KIND OF BROKEN
-For whatever reason the relationships i have set up in the database do not seem to want to be talking to one another.
-*/
+module.exports = EmployeeCMS
