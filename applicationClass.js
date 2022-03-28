@@ -1,20 +1,28 @@
+// imports the node packages that are integral for the functionality of the application
 const inquirer = require("inquirer");
+// import the database from the connection that we have set up in the sql connection file
 const db = require(`./sqlConnection`)
-const { headerText } = require(`./helpers`);
 require(`dotenv`).config()
 
+// importing the header text from the helpers file.
+const { headerText } = require(`./helpers`);
+
+// Defines a new class called EmployeeCMS, all of the functionality of the application will deriver from here
 class EmployeeCMS {
     constructor() {
+        // Defines a title to be used for the start of the application
         this.title = headerText;
         this.breakStyle = `\n=========================\n`;
     }
-
+    // Method for showing the Welcome screen, this includes the title of the program along with it directing the application to the homeScreen method next
     welcomeMessage() {
         console.log(this.title);
         this.homeScreen();
     }
-
+    // The homeScreen method is asynchronous so the inquirer information can be stored inside of a constant variable as opposed to relying of .then statements.
+    // The homeScreen is the primary navigation for that application, giving the user all the choices for any functionality it has to offer
     async homeScreen() {
+        // start the inquirer prompt with the navigation choices
         const homeNavigation = await inquirer.prompt([
             {
                 message: `Welcome to the Inner Employee CMS System.\n What would you like to do today?`,
@@ -25,6 +33,7 @@ class EmployeeCMS {
                 ]
             }
         ])
+        // direct the navigation selection to the proper method
         switch (homeNavigation.homepage) {
             case `View All Departments`:
                 this.viewAllDepartments();
@@ -54,7 +63,7 @@ class EmployeeCMS {
                 break;
         }
     }
-
+    // used as a redirect and a console.clear so the application doesn't grow longer and longer in length (basically this is a stall point).
     async backToHome() {
         const backToHome = await inquirer.prompt([
             {
@@ -63,11 +72,13 @@ class EmployeeCMS {
                 name: `return`
             }
         ])
+        // cleans the console window.
         console.clear();
+        // redirect back to the welcomeMessage Method
         this.welcomeMessage();
         ;
     }
-
+    // queries into the database to see all of the current departments that are stored inside of it.
     async viewAllDepartments() {
         await db.promise().query('SELECT department.id, department.department_name FROM department ORDER BY department.id')
             .then(([departments]) => {
