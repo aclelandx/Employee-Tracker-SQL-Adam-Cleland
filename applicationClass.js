@@ -253,61 +253,81 @@ class EmployeeCMS {
         ])
         // directs the selection to the proper function to be executed
         switch (newEmployeeInformation.changeHow) {
+            // allows user to change the job position of the selected employee
             case `Change Job Position`:
+                // displays the existing job titles for the user to pick from.
                 await db.promise().query(`SELECT job_title.id, job_title.title FROM job_title`)
                     .then(([data]) => { console.table(data) })
+                // Grabs the users selection of the job ID that the employee will be changed to.
                 const jobUpdate = await inquirer.prompt([{
                     message: `Please Select an existing job title to assign this individual (Choose By ID)`,
                     type: `input`,
                     name: `newJob`
                 }]);
+                // takes the users information and queries into the database to change the previous job_title_id to the new rendition
                 await db.promise().query(`UPDATE employee SET job_title_id = ${jobUpdate.newJob} 
                 WHERE id = ${targetEmployee}`)
                 console.log(`Employees job title has been updated`)
+                // sends to redirect back to the home screen via the backToHome method
                 this.backToHome();
                 break;
+            // allows the user to change the first name of the selected employee, I though this would be realistic just because typo's do happen and would always want an easier way to fix the issue rather than delete them from the database and then add them back all over again
             case `Change First Name`:
+                // grabs the new first name for the employee then queries into the database to change the prior value to the new rendition
                 const fNameUpdate = await inquirer.prompt({ message: `What is the new first name for this employee?`, type: `input`, name: `fName` });
                 await db.promise().query(`UPDATE employee SET first_name = '${fNameUpdate.fName}' WHERE employee.id = ${targetEmployee}`)
                 console.log(`First name has been updated`);
+                // sends to redirect back to the home screen via the backToHome method
                 this.backToHome();
                 break;
+            // allows the user to change the last name of the selected employee, For this one the same goes for the above, but also people get married and change their last name, so from a business standpoint it made sense to include this section as well.
             case `Change Last Name`:
+                // grabs the users input for the new last name and queries into the database to change the prior value to the new rendition
                 const lNameUpdate = await inquirer.prompt({ message: `What is the new Last name for this employee?`, type: `input`, name: `lname` });
                 await db.promise().query(`UPDATE employee SET last_name = '${lNameUpdate.lname}' WHERE employee.id = ${targetEmployee}`)
                 console.log(`last name has been updated`);
+                // sends to redirect back to the home screen via the backToHome method
                 this.backToHome();
                 break;
+            // allows the user to change what manager is in charge of the employee, people get promoted, people get re-assigned... business is business.
             case `Change Their Manager`:
+                // displays the list of employees so the user can select one by ID with ease.
                 await db.promise().query(`SELECT employee.id, CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee Name' FROM employee ORDER BY employee.id`).then(([data]) => {
                     console.table(data)
                 })
+                // grabs the user selection for the new manager assignment for the chosen employee, also allows for the user to set NULL indicating that this person has no manager.
                 const updatedManager = await inquirer.prompt({
                     message: `What is the new manager id for this individual? (please select a number from the list above)`,
                     type: `input`,
                     name: `newManager`
                 })
+                // takes the users selection and queries into the database in order to update the value to the new rendition
                 await db.promise().query(`UPDATE employee SET manager_id = ${updatedManager.newManager} WHERE employee.id = ${targetEmployee}`)
                 console.log(`The manager for the selected employee has been updated`);
+                // sends to redirect back to the home screen via the backToHome method
                 this.backToHome();
                 break;
             default: console.log(`something went wrong with your selection`);
                 break;
         }
     }
-
+    // allows the user to remove someone from the database
     async removeEmployee(targetEmployee) {
+        // takes the target employee parameter which is passed on from the previous switch case and allows this specific individual to be the target for the deletion.
         await db.promise().query(`SELECT id, CONCAT(first_name, ' ', last_name) As 'Employee Name' FROM employee WHERE id = ?`, targetEmployee).then((data) => { console.table(data[0]) })
+        // Added a double confirm for the deletion of en employee, sometimes the wrong number gets pressed, no need to nuke the database due to an accident.
         const deleteConfirm = await inquirer.prompt([{
             message: `Are you Sure you want to Delete this Employee?`,
             type: `confirm`,
             name: `confirmDelete`
         }])
+        // if the user decides that yes they want to delete this individual then they are removed from the database and the user is taken back to the home screen via the backToHome method.
         if (deleteConfirm.confirmDelete) {
             await db.promise().query(`DELETE FROM employee WHERE id = ?`, targetEmployee)
             console.log(`Employee Has been Successfully Deleted from the Database.`)
             this.backToHome();
         } else {
+            // if the user decided no they dont want to delete the employee then they are redirected back to the home screen
             this.welcomeMessage();
         }
     }
