@@ -1,56 +1,245 @@
 const inquirer = require("inquirer");
-const sql = require(`mysql2`);
+const db = require(`./sqlConnection`)
+const { headerText } = require(`./helpers`);
+require(`dotenv`).config()
 
 class EmployeeCMS {
     constructor() {
-        this.headerName = `------EMPLOYEE CMS------`;
+        this.title = headerText;
         this.breakStyle = `\n=========================\n`;
     }
 
-    homeScreen() {
-        console.log(this.breakStyle, this.headerName, this.breakStyle,
-            `ello Govna`)
+    welcomeMessage() {
+        console.log(this.title);
+        this.homeScreen();
     }
 
-    methodTwo() {
+    async homeScreen() {
+        const homeNavigation = await inquirer.prompt([
+            {
+                message: `Welcome to the Inner Employee CMS System.\n What would you like to do today?`,
+                name: `homepage`,
+                type: `list`,
+                choices: [
+                    `View All Departments`, `View All Jobs`, `View All Employee's`, `Add A Department`, `Add a Job Position`, `Add an Employee`, `Update Existing Employee`, `Quit`
+                ]
+            }
+        ])
+        switch (homeNavigation.homepage) {
+            case `View All Departments`:
+                this.viewAllDepartments();
+                break;
+            case `View All Jobs`:
+                this.viewAllJobs();
+                break;
+            case `View All Employee's`:
+                this.viewAllEmployees();
+                break;
+            case `Add A Department`:
+                this.addDepartment();
+                break;
+            case `Add a Job Position`:
+                this.addJobPosition();
+                break;
+            case `Add an Employee`:
+                this.addEmployee();
+                break;
+            case `Update Existing Employee`:
+                this.updateEmployee();
+                break;
+            case `Quit`:
+                console.log(`GoodBye!`)
+                process.exit();
+            default: console.log(`something went wrong with your selection`);
+                break;
+        }
+    }
+
+    async backToHome() {
+        const backToHome = await inquirer.prompt([
+            {
+                message: `Press |Enter| to return to the main screen.`,
+                type: `input`,
+                name: `return`
+            }
+        ])
+        console.clear();
+        this.welcomeMessage();
+        ;
+    }
+
+    async viewAllDepartments() {
+        await db.promise().query('SELECT department.id, department.department_name FROM department')
+            .then(([departments]) => {
+                console.table(departments);
+            });
+        this.backToHome()
+    }
+
+    async viewAllJobs() {
+        await db.promise().query('SELECT job_title.id, job_title.title, job_title.salary, department.department_name AS "Department Name" FROM job_title JOIN department ON job_title.department_id = department.id ORDER BY job_title.id')
+            .then(([positions]) => {
+                console.table(positions);
+            })
+        this.backToHome()
+    }
+
+    async viewAllEmployees() {
+        await db.promise().query(`
+        SELECT employee.id, 
+        CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee Name', 
+        job_title.title AS "Job Position", 
+        job_title.salary AS "Salary",
+        department.department_name AS 'Department'
+        FROM employee 
+        JOIN job_title ON employee.job_title_id = job_title.id
+        JOIN department ON job_title.department_id = department.id
+        ORDER BY employee.id`)
+            .then(([employees]) => {
+                console.table(employees);
+            })
+        this.backToHome();
+    }
+
+    addDepartment() {
+        console.log(`You have chosen to add a department`);
+    }
+
+    addJobPosition() {
+        console.log(`You have chosen to add a new job position`);
 
     }
 
-    methodThree() {
+    async addEmployee() {
+        const newEmployeeName = await inquirer.prompt([
+            {
+                message: `What is the new Employee's First name?`,
+                type: `input`,
+                name: `firstName`
+            },
+            {
+                message: `What is the new Employee's last name?`,
+                type: `input`,
+                name: `lastName`
+            }
+        ])
+        await db.promise().query(`SELECT job_title.id, job_title.title FROM job_title`).then(([data]) => {
+            console.table(data);
+        })
+        const newEmployeeJT = await inquirer.prompt({
+            message: `Please Select one of the existing Job Title ID numbers for this Employee`,
+            type: `input`,
+            name: `jobT`
+        })
 
+        await db.promise().query(`SELECT employee.id, CONCAT(employee.first_name, ' ', employee.last_name) AS 'Managers Name' FROM employee`).then(([data]) => { console.table(data) })
+
+        const isManager = await inquirer.prompt({
+            message: `Who is the Manager for the new employee? (Select an ID from the list above)\n *If the New Employee is a manager type NULL*\n`,
+            type: `input`,
+            name: `manager`
+        })
+
+        await db.promise().query(`INSERT INTO employee (first_name, last_name, job_title_id, manager_id)
+        VALUES ('${newEmployeeName.firstName}','${newEmployeeName.lastName}',${newEmployeeJT.jobT},${isManager.manager});`)
+
+        console.log(`${newEmployeeName.firstName} ${newEmployeeName.lastName} has been added to the database.`)
+
+        this.backToHome();
+
+    }
+
+    async updateEmployee() {
+        // displays the employees information so it can be references more easily
+        await db.promise().query(`SELECT employee.id AS 'Employee ID', CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee Name' FROM employee ORDER BY employee.id`).then(([employees]) => { console.table(employees) })
+        const changeEmployee = await inquirer.prompt([
+            {
+                message: `Which Employee Will you be changing? (Please input the Associated ID number)`,
+                name: `changeWho`,
+                type: `input`,
+            },
+
+            {
+                message: `What would you like to do with this Employee?`,
+                name: `changeHow`,
+                type: `list`,
+                choices: [
+                    `Update Information`, `Delete Employee`
+                ],
+                default: `Update Information`
+            }
+        ])
+        switch (changeEmployee.changeHow) {
+            case `Update Information`:
+                this.changeEmployeeInformation(changeEmployee.changeWho)
+                break;
+            case `Delete Employee`:
+                this.removeEmployee(changeEmployee.changeWho)
+                break;
+            default: console.log(`Something went wrong with your selection`);
+                break;
+        }
+    }
+
+    async changeEmployeeInformation(targetEmployee) {
+        const newEmployeeInformation = await inquirer.prompt([
+            {
+                message: `What would you like to change for employee id : ${targetEmployee}?`,
+                name: `changeHow`,
+                type: `list`,
+                choices: [
+                    `Change Job Position`, `Change First Name`, `Change Last Name`, `Change Their Manager`
+                ]
+            }
+        ])
+        switch (newEmployeeInformation.changeHow) {
+            case `Change Job Position`:
+                await db.promise().query(`SELECT job_title.id, job_title.title FROM job_title`)
+                    .then(([data]) => { console.table(data) })
+                inquirer.prompt([{
+                    message: `Please Select an existing job title to assign this individual (Choose By ID)`,
+                }]);
+                break;
+            case `Change First Name`:
+                console.log(`you have chosen to change the first name of ${targetEmployee}`);
+                break;
+            case `Change Last Name`:
+                console.log(`you have chosen to change the last name of ${targetEmployee}`);
+                break;
+            case `Change Their Manager`:
+                console.log(`you have chosen to change the manager of ${targetEmployee}`);
+                break;
+            default: console.log(`something went wrong with your selection`);
+                break;
+        }
+        console.log(`you have chosen to change the employee with the id number of: ${targetEmployee}`)
+    }
+
+    async removeEmployee(targetEmployee) {
+        await db.promise().query(`SELECT id, CONCAT(first_name, ' ', last_name) As 'Employee Name' FROM employee WHERE id = ?`, targetEmployee).then((data) => { console.table(data[0]) })
+        const deleteConfirm = await inquirer.prompt([{
+            message: `Are you Sure you want to Delete this Employee?`,
+            type: `confirm`,
+            name: `confirmDelete`
+        }])
+        if (deleteConfirm.confirmDelete) {
+            await db.promise().query(`DELETE FROM employee WHERE id = ?`, targetEmployee)
+            console.log(`Employee Has been Successfully Deleted from the Database.`)
+            this.backToHome();
+        } else {
+            this.welcomeMessage();
+        }
     }
 }
 
 const test = new EmployeeCMS();
 
-test.homeScreen();
-
-const welcomeText = `
- ______                 _                        _____ __  __  _____ 
-|  ____|               | |                     /  ____|  |/  |/ ____|
-| |__   _ __ ___  _ __ | | ___  _   _  ___  ___| |    | ||-| | (___  
-|  __| | '_ - _ || '_ || |/ _ || | | |/ _ |/ _ | |    | |  | |L___ | 
-| |____| | | | | | |_) | | (_) | |_| |  __/  __/ |____| |  | |____) |
-|______|_| |_| |_| .__/|_||___/|__, ||___||___||______|_|  |_|_____/ 
-                 | |             __/ |         
- ________________|_|____________|___/_______________________________
-|_______Developed By Adam Cleland || An OSU Boot Camp Project_______|                                
-`;
-
-console.log(welcomeText);
-
+test.welcomeMessage();
 
 
 // module.exports = EmployeeCMS;
 
 /*
-ACCEPTANCE CRITERIA
-GIVEN a command line application that accepts users input
-
-WHEN i start the application /
-    THEN i am presented with the following options: view all departments, view all roles, view all employees, add a department, add a role, add an employee, and update an employee role.
-WHEN i choose to view all departments
-    THEN i a presented with a formatted table showing department names and department ID's
 WHEN  i chose to view all roles, 
     THEN i am presented with the job  title, role id, the department that the role belongs to, and the salary for that role
 WHEN i choose to view all employees
@@ -65,11 +254,7 @@ WHEN i choose to update an employee's Role
     THEN i am prompted to select an employee to update and their new role and this information is updated into the database.
 */
 
-/*
-THINGS THAT I WANT TO GET DONE TONIGHT 3/21/2022
-    1. Create the home screen for the application and make a switch case attached to the object for delegation purposes.
-    2. Create the method names for each function that will need to play out have a console log to indicate that is it working correctly.
-    3. Create Some dummy seed data that will already be in the system to be able to be interacted with.
-    4. Make one insert query to be used as reference.
-    5. create the base connection and get it to work.
+/* 
+THINGS THAT ARE STILL KIND OF BROKEN
+For whatever reason the relationships i have set up in the database do not seem to want to be talking to one another.
 */
