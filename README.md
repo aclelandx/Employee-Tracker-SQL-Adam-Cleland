@@ -20,27 +20,31 @@ We are tasked with creating a Content management system (CMS) that is to be util
 
 ---
 
-Download the Repo and Run on your local machine
+Download / clone the Repo and Run on your local machine
 
 ## Usage Information
 
 ---
 
-To begin the program, Navigate to the directory that the index.js is in and run "node index.js" \n then fill out the questions provided.
+-Go into the sqlConnection.js file and change the information from the dovenv information to your own.
+-To begin the program, Navigate to your local directory and source the schema, along with the seed data from the db folder using mysql.
+-go to your command line terminal and execute **node index.js**
 
 ## Video Link
 
 ---
 
-video functionality link: [ClickHere](https://drive.google.com)
+video functionality link: [ClickHere](https://drive.google.com/file/d/1E3o9oRksRp4HfV9M8PfVlevLQgNe6olE/view)
 
 ## ScreenShots
 
 ---
 
-<img src="./Assets/screenShots/sc-1.png" alt="First screenshot showing the functionality of the application.">
+<img src="./screenShots/sc-1.png" alt="First screenshot showing the functionality of the application.">
 
-<img src="./Assets/screenShots/sc-2.png" alt="Second screenshot showing the functionality of the application.">
+<img src="./screenShots/sc-2.png" alt="Second screenshot showing the functionality of the application.">
+
+<img src="./screenShots/sc-2.png" alt="third screenshot showing the functionality of the application.">
 
 ## Contributions
 
